@@ -87,10 +87,10 @@ create_doc(PInfo pi) {
 
 static void
 create_prolog_doc(PInfo pi, const char *target, Attr attrs) {
-    volatile VALUE       doc;
-    volatile VALUE       ah;
-    volatile VALUE       nodes;
-    volatile VALUE	sym;
+    volatile VALUE doc;
+    volatile VALUE ah;
+    volatile VALUE nodes;
+    volatile VALUE sym;
 
     if (!helper_stack_empty(&pi->helpers)) { /* top level object */
         ox_err_set(&pi->err, ox_syntax_error_class, "Prolog must be the first element in an XML document.\n");
@@ -126,7 +126,9 @@ create_prolog_doc(PInfo pi, const char *target, Attr attrs) {
 #endif
 	}
 	if (0 == strcmp("encoding", attrs->name)) {
+#if HAVE_RB_ENC_FIND
 	    pi->options->rb_enc = rb_enc_find(attrs->value);
+#endif
 	}
     }
     nodes = rb_ary_new();
