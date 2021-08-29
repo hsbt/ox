@@ -2,6 +2,13 @@
 
 All changes to the Ox gem are documented here. Releases follow semantic versioning.
 
+## [2.14.6] - unreleased
+
+### Fixed
+
+- Ox is now marked as Ractor safe.
+
+
 ## [2.14.5] - 2021-06-04
 
 ### Fixed

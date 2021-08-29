@@ -201,7 +201,7 @@ ox_stpncpy(char *dest, const char *src, size_t n) {
     if (n < cnt) {
 	cnt = n;
     }
-    strncpy(dest, src, cnt);
+    memcpy(dest, src, cnt);
 
     return dest + cnt - 1;
 }

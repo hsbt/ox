@@ -245,6 +245,8 @@ static void
 add_text(PInfo pi, char *text, int closed) {
     VALUE       s = rb_str_new2(text);
 
+    // TBD cache
+
 #if HAVE_RB_ENC_ASSOCIATE
     if (0 != pi->options->rb_enc) {
         rb_enc_associate(s, pi->options->rb_enc);
@@ -261,6 +263,8 @@ add_element(PInfo pi, const char *ename, Attr attrs, int hasChildren) {
     VALUE       e;
     VALUE       s = rb_str_new2(ename);
 
+    // TBD s can be cached and should be the correct encoding
+
     if (Qnil != pi->options->element_key_mod) {
 	s = rb_funcall(pi->options->element_key_mod, ox_call_id, 1, s);
     }
@@ -274,6 +278,8 @@ add_element(PInfo pi, const char *ename, Attr attrs, int hasChildren) {
     if (0 != attrs->name) {
         volatile VALUE	ah = rb_hash_new();
 
+	// TBD use bulk set of hash if available
+
         for (; 0 != attrs->name; attrs++) {
             volatile VALUE	sym;
 
@@ -282,6 +288,7 @@ add_element(PInfo pi, const char *ename, Attr attrs, int hasChildren) {
 	    } else if (Yes == pi->options->sym_keys) {
 		VALUE	*slot;
 
+		// TBD cache attrs->name
 		if (Qundef == (sym = ox_cache_get(ox_symbol_cache, attrs->name, &slot, 0))) {
 #if HAVE_RB_ENC_ASSOCIATE
 		    if (0 != pi->options->rb_enc) {

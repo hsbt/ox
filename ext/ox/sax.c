@@ -88,6 +88,8 @@ str2sym(SaxDrive dr, const char *str, const char **strp) {
     VALUE	*slot;
     VALUE	sym;
 
+    // TBD cache if option set
+
     if (dr->options.symbolize) {
 	if (Qundef == (sym = ox_cache_get(ox_symbol_cache, str, &slot, strp))) {
 #if HAVE_RB_ENC_ASSOCIATE

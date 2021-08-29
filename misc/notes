@@ -13,6 +13,24 @@
 
 - todo
 
+ - cache change to Oj cache
+  - need something that keeps track of global caches
+   - expect small number so a linked list should be fine.
+
+  - start with sax parser (str2sym)
+  - add cache ref to pinfo based on encoding type, default to utf8 or what ever is set as default option
+   - if not defined then lookup
+
+  - optional
+   - attrs (name (sym or string) and value (cache_strings))
+   - element names (string)
+   - values/text (cache_strings: int)
+
+ - use bulk has set for add_element in gen_load
+
+ - is hash_load unmark() needed?
+
+
  - taint deprecated
   - implement a marked array or linked list in pinfo
    - not super efficient but it should work
