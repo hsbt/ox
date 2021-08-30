@@ -39,6 +39,7 @@ have_func('rb_struct_alloc_noinit')
 have_func('rb_obj_encoding')
 have_func('rb_ivar_foreach')
 have_func('rb_ext_ractor_safe', 'ruby.h')
+have_func('pthread_mutex_init')
 
 have_header('ruby/st.h')
 have_header('sys/uio.h')

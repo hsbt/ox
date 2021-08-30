@@ -21,6 +21,7 @@
 #endif
 #include "ox.h"
 #include "sax.h"
+#include "intern.h"
 #include "sax_stack.h"
 #include "sax_buf.h"
 #include "special.h"
@@ -71,7 +72,7 @@ static VALUE protect_parse(VALUE drp) {
     return Qnil;
 }
 
-#if HAVE_RB_ENC_ASSOCIATE
+#if HAVE_RB_ENC_ASSOCIATEx
 static int
 str_is_ascii(const char *s) {
     for (; '\0' != *s; s++) {
@@ -85,12 +86,15 @@ str_is_ascii(const char *s) {
 
 VALUE
 str2sym(SaxDrive dr, const char *str, const char **strp) {
-    VALUE	*slot;
+    //VALUE	*slot;
     VALUE	sym;
 
     // TBD cache if option set
 
     if (dr->options.symbolize) {
+#if 1
+	sym = ox_sym_intern(str, strlen(str), strp);
+#else
 	if (Qundef == (sym = ox_cache_get(ox_symbol_cache, str, &slot, strp))) {
 #if HAVE_RB_ENC_ASSOCIATE
 	    if (0 != dr->encoding && !str_is_ascii(str)) {
@@ -109,6 +113,7 @@ str2sym(SaxDrive dr, const char *str, const char **strp) {
 	    *slot = sym;
 #endif
 	}
+#endif
     } else {
 	sym = rb_str_new2(str);
 #if HAVE_RB_ENC_ASSOCIATE
@@ -1010,14 +1015,14 @@ read_element_end(SaxDrive dr) {
 	    h = ox_hint_find(dr->options.hints, dr->buf.str);
 	    if (NULL != h && h->empty) {
 		// Just close normally
-		name = str2sym(dr, dr->buf.str, 0);
+		name = str2sym(dr, dr->buf.str, NULL);
 		snprintf(msg, sizeof(msg) - 1, "%selement '%s' should not have a separate close element", EL_MISMATCH, dr->buf.str);
 		ox_sax_drive_error_at(dr, msg, pos, line, col);
 		return c;
 	    } else {
 		snprintf(msg, sizeof(msg) - 1, "%selement '%s' closed but not opened", EL_MISMATCH, dr->buf.str);
 		ox_sax_drive_error_at(dr, msg, pos, line, col);
-		name = str2sym(dr, dr->buf.str, 0);
+		name = str2sym(dr, dr->buf.str, NULL);
 		if (dr->has.start_element && 0 >= dr->blocked && (NULL == h || ActiveOverlay == h->overlay || NestOverlay == h->overlay)) {
 		    VALUE       args[1];
 
@@ -1305,7 +1310,7 @@ read_attrs(SaxDrive dr, char c, char termc, char term2, int is_xml, int eq_req, 
             is_encoding = 1;
         }
         if (dr->has.attr || dr->has.attr_value) {
-            name = str2sym(dr, dr->buf.str, 0);
+            name = str2sym(dr, dr->buf.str, NULL);
         }
         if (is_white(c)) {
             c = buf_next_non_white(&dr->buf);

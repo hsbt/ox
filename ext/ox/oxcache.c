@@ -11,7 +11,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#include "cache.h"
+#include "oxcache.h"
 
 struct _cache {
     /* The key is a length byte followed by the key as a string. If the key is longer than 254 characters then the
