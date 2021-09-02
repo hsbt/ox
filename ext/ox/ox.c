@@ -1572,8 +1572,8 @@ void Init_ox() {
 
 #if WITH_CACHE_TESTS
     // space added to stop yardoc from trying to document
-    rb_define _module_function(Ox, "cache_test", cache_test, 0);
-    rb_define _module_function(Ox, "cache8_test", cache8_test, 0);
+    rb_define_module_function(Ox, "cache_test", cache_test, 0);
+    rb_define_module_function(Ox, "cache8_test", cache8_test, 0);
 #endif
 
 #if HAVE_RB_ENC_FIND

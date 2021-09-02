@@ -130,7 +130,7 @@ static VALUE lockless_intern(Cache c, const char *key, size_t len, const char **
     }
     for (b = *bucket; NULL != b; b = b->next) {
         if ((uint8_t)len == b->klen && 0 == strncmp(b->key, key, len)) {
-            b->use_cnt += 4;
+            b->use_cnt += 16;
 	    if (NULL != keyp) {
 		*keyp = b->key;
 	    }
@@ -151,7 +151,7 @@ static VALUE lockless_intern(Cache c, const char *key, size_t len, const char **
         b->klen     = (uint8_t)len;
         b->key[len] = '\0';
         b->val      = rkey;
-        b->use_cnt  = 4;
+        b->use_cnt  = 16;
         b->next     = *bucket;
         *bucket     = b;
         c->cnt++;  // Don't worry about wrapping. Worse case is the entry is removed and recreated.
@@ -186,7 +186,7 @@ static VALUE locking_intern(Cache c, const char *key, size_t len, const char **k
     bucket = c->slots + (h & c->mask);
     for (b = *bucket; NULL != b; b = b->next) {
         if ((uint8_t)len == b->klen && 0 == strncmp(b->key, key, len)) {
-            b->use_cnt += 4;
+            b->use_cnt += 16;
             CACHE_UNLOCK(c);
 	    if (NULL != keyp) {
 		*keyp = b->key;
@@ -212,7 +212,7 @@ static VALUE locking_intern(Cache c, const char *key, size_t len, const char **k
         b->klen     = (uint8_t)len;
         b->key[len] = '\0';
         b->val      = rkey;
-        b->use_cnt  = 4;
+        b->use_cnt  = 16;
 
         // Lock again to add the new entry.
         CACHE_LOCK(c);
@@ -331,8 +331,15 @@ void cache_mark(Cache c) {
 VALUE
 cache_intern(Cache c, const char *key, size_t len, const char **keyp) {
     if (CACHE_MAX_KEY < len) {
-	// TBD get string from new "thing", need fund on cache
-        return c->form(key, len);
+	if (NULL != keyp) {
+	    volatile VALUE	rkey = c->form(key, len);
+
+	    if (SYMBOL_P(rkey)) {
+		*keyp = rb_id2name(rb_sym2id(rkey));
+	    }
+	    return rkey;
+	}
+	return c->form(key, len);
     }
     return c->intern(c, key, len, keyp);
 }

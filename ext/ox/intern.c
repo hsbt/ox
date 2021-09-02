@@ -14,8 +14,6 @@
 #include "cache.h"
 #include "intern.h"
 
-//#include "parse.h"
-
 // Only used for the class cache so 256 should be sufficient.
 #define HASH_SLOT_CNT ((uint64_t)256)
 #define HASH_MASK (HASH_SLOT_CNT - 1)

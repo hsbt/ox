@@ -72,48 +72,12 @@ static VALUE protect_parse(VALUE drp) {
     return Qnil;
 }
 
-#if HAVE_RB_ENC_ASSOCIATEx
-static int
-str_is_ascii(const char *s) {
-    for (; '\0' != *s; s++) {
-	if (*s < ' ' || '~' < *s) {
-	    return 0;
-	}
-    }
-    return 1;
-}
-#endif
-
 VALUE
 str2sym(SaxDrive dr, const char *str, const char **strp) {
-    //VALUE	*slot;
     VALUE	sym;
 
-    // TBD cache if option set
-
     if (dr->options.symbolize) {
-#if 1
 	sym = ox_sym_intern(str, strlen(str), strp);
-#else
-	if (Qundef == (sym = ox_cache_get(ox_symbol_cache, str, &slot, strp))) {
-#if HAVE_RB_ENC_ASSOCIATE
-	    if (0 != dr->encoding && !str_is_ascii(str)) {
-		VALUE	rstr = rb_str_new2(str);
-
-		// TBD if sym can be pinned down then use this all the time
-		rb_enc_associate(rstr, dr->encoding);
-		sym = rb_funcall(rstr, ox_to_sym_id, 0);
-		*slot = Qundef;
-	    } else {
-		sym = ID2SYM(rb_intern(str));
-		*slot = sym;
-	    }
-#else
-	    sym = ID2SYM(rb_intern(str));
-	    *slot = sym;
-#endif
-	}
-#endif
     } else {
 	sym = rb_str_new2(str);
 #if HAVE_RB_ENC_ASSOCIATE
