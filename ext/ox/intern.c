@@ -115,7 +115,7 @@ void ox_hash_init() {
 
 VALUE
 ox_str_intern(const char *key, size_t len) {
-    // For hugh cache sizes over half a million the rb_enc_interned_str
+    // For huge cache sizes over half a million the rb_enc_interned_str
     // performs slightly better but at more "normal" size of a several
     // thousands the cache intern performs about 20% better.
 #if HAVE_RB_ENC_INTERNED_STR && 0

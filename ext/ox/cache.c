@@ -4,8 +4,13 @@
 #if HAVE_PTHREAD_MUTEX_INIT
 #include <pthread.h>
 #endif
+#include <stdlib.h>
 
 #include "cache.h"
+
+// The stdlib calloc, realloc, and free are used instead of the Ruby ALLOC,
+// ALLOC_N, REALLOC, and xfree since the later could trigger a GC which will
+// either corrupt memory or if the mark function locks will deadlock.
 
 #define REHASH_LIMIT 4
 #define MIN_SHIFT 8
@@ -23,23 +28,23 @@
 #define M 0x5bd1e995
 
 typedef struct _slot {
-    struct _slot *next;
-    VALUE         val;
-    uint64_t      hash;
-    uint32_t      use_cnt;
-    uint8_t       klen;
-    char          key[CACHE_MAX_KEY];
+    struct _slot *    next;
+    VALUE             val;
+    uint64_t          hash;
+    volatile uint32_t use_cnt;
+    uint8_t           klen;
+    char              key[CACHE_MAX_KEY];
 } * Slot;
 
 typedef struct _cache {
-    Slot * slots;
-    size_t cnt;
+    volatile Slot * slots;
+    volatile size_t cnt;
     VALUE (*form)(const char *str, size_t len);
     uint64_t size;
     uint64_t mask;
     VALUE (*intern)(struct _cache *c, const char *key, size_t len, const char **keyp);
-    Slot   reuse;
-    size_t rcnt;
+    volatile Slot reuse;
+    size_t        rcnt;
 #if HAVE_PTHREAD_MUTEX_INIT
     pthread_mutex_t mutex;
 #else
@@ -88,23 +93,24 @@ static uint64_t hash_calc(const uint8_t *key, size_t len) {
 }
 
 static void rehash(Cache c) {
-    uint64_t osize = c->size;
+    uint64_t osize;
     Slot *   end;
     Slot *   sp;
 
-    c->size = osize * 4;
-    c->mask = c->size - 1;
-    REALLOC_N(c->slots, Slot, c->size);
-    memset(c->slots + osize, 0, sizeof(Slot) * osize * 3);
-    end = c->slots + osize;
-    for (sp = c->slots; sp < end; sp++) {
+    osize    = c->size;
+    c->size  = osize * 4;
+    c->mask  = c->size - 1;
+    c->slots = realloc((void *)c->slots, sizeof(Slot) * c->size);
+    memset((Slot *)c->slots + osize, 0, sizeof(Slot) * osize * 3);
+    end = (Slot *)c->slots + osize;
+    for (sp = (Slot *)c->slots; sp < end; sp++) {
         Slot s    = *sp;
         Slot next = NULL;
 
         *sp = NULL;
         for (; NULL != s; s = next) {
             uint64_t h      = s->hash & c->mask;
-            Slot *   bucket = c->slots + h;
+            Slot *   bucket = (Slot *)c->slots + h;
 
             next    = s->next;
             s->next = *bucket;
@@ -114,14 +120,15 @@ static void rehash(Cache c) {
 }
 
 static VALUE lockless_intern(Cache c, const char *key, size_t len, const char **keyp) {
-    uint64_t h      = hash_calc((const uint8_t *)key, len);
-    Slot *   bucket = c->slots + (h & c->mask);
-    Slot     b;
+    uint64_t       h      = hash_calc((const uint8_t *)key, len);
+    Slot *         bucket = (Slot *)c->slots + (h & c->mask);
+    Slot           b;
+    volatile VALUE rkey;
 
     while (REUSE_MAX < c->rcnt) {
         if (NULL != (b = c->reuse)) {
             c->reuse = b->next;
-            xfree(b);
+            free(b);
             c->rcnt--;
         } else {
             // An accounting error occured somewhere so correct it.
@@ -137,45 +144,43 @@ static VALUE lockless_intern(Cache c, const char *key, size_t len, const char **
             return b->val;
         }
     }
-    {
-        volatile VALUE rkey = c->form(key, len);
-
-        if (NULL == (b = c->reuse)) {
-            b = ALLOC(struct _slot);
-        } else {
-            c->reuse = b->next;
-            c->rcnt--;
-        }
-        b->hash = h;
-        memcpy(b->key, key, len);
-        b->klen     = (uint8_t)len;
-        b->key[len] = '\0';
-        b->val      = rkey;
-        b->use_cnt  = 16;
-        b->next     = *bucket;
-        *bucket     = b;
-        c->cnt++;  // Don't worry about wrapping. Worse case is the entry is removed and recreated.
-        if (REHASH_LIMIT < c->cnt / c->size) {
-            rehash(c);
-        }
+    rkey = c->form(key, len);
+    if (NULL == (b = c->reuse)) {
+        b = calloc(1, sizeof(struct _slot));
+    } else {
+        c->reuse = b->next;
+        c->rcnt--;
     }
+    b->hash = h;
+    memcpy(b->key, key, len);
+    b->klen     = (uint8_t)len;
+    b->key[len] = '\0';
+    b->val      = rkey;
+    b->use_cnt  = 4;
+    b->next     = *bucket;
+    *bucket     = b;
+    c->cnt++;  // Don't worry about wrapping. Worse case is the entry is removed and recreated.
     if (NULL != keyp) {
         *keyp = b->key;
     }
-    return b->val;
+    if (REHASH_LIMIT < c->cnt / c->size) {
+        rehash(c);
+    }
+    return rkey;
 }
 
 static VALUE locking_intern(Cache c, const char *key, size_t len, const char **keyp) {
-    uint64_t h;
-    Slot *   bucket;
-    Slot     b;
-    uint64_t old_size;
+    uint64_t       h;
+    Slot *         bucket;
+    Slot           b;
+    uint64_t       old_size;
+    volatile VALUE rkey;
 
     CACHE_LOCK(c);
     while (REUSE_MAX < c->rcnt) {
         if (NULL != (b = c->reuse)) {
             c->reuse = b->next;
-            xfree(b);
+            free(b);
             c->rcnt--;
         } else {
             // An accounting error occured somewhere so correct it.
@@ -183,62 +188,62 @@ static VALUE locking_intern(Cache c, const char *key, size_t len, const char **k
         }
     }
     h      = hash_calc((const uint8_t *)key, len);
-    bucket = c->slots + (h & c->mask);
+    bucket = (Slot *)c->slots + (h & c->mask);
     for (b = *bucket; NULL != b; b = b->next) {
         if ((uint8_t)len == b->klen && 0 == strncmp(b->key, key, len)) {
-            b->use_cnt += 16;
-            CACHE_UNLOCK(c);
+            b->use_cnt += 4;
             if (NULL != keyp) {
                 *keyp = b->key;
             }
+            CACHE_UNLOCK(c);
+
             return b->val;
         }
     }
     old_size = c->size;
     // The creation of a new value may trigger a GC which be a problem if the
     // cache is locked so make sure it is unlocked for the key value creation.
-    if (NULL == (b = c->reuse)) {
-        b = ALLOC(struct _slot);
-    } else {
+    if (NULL != (b = c->reuse)) {
         c->reuse = b->next;
         c->rcnt--;
     }
     CACHE_UNLOCK(c);
-    {
-        volatile VALUE rkey = c->form(key, len);
-
-        b->hash = h;
-        memcpy(b->key, key, len);
-        b->klen     = (uint8_t)len;
-        b->key[len] = '\0';
-        b->val      = rkey;
-        b->use_cnt  = 16;
-
-        // Lock again to add the new entry.
-        CACHE_LOCK(c);
-        if (old_size != c->size) {
-            h      = hash_calc((const uint8_t *)key, len);
-            bucket = c->slots + (h & c->mask);
-        }
-        b->next = *bucket;
-        *bucket = b;
-        c->cnt++;  // Don't worry about wrapping. Worse case is the entry is removed and recreated.
-        if (REHASH_LIMIT < c->cnt / c->size) {
-            rehash(c);
-        }
-        CACHE_UNLOCK(c);
+    if (NULL == b) {
+        b = calloc(1, sizeof(struct _slot));
     }
+    rkey    = c->form(key, len);
+    b->hash = h;
+    memcpy(b->key, key, len);
+    b->klen     = (uint8_t)len;
+    b->key[len] = '\0';
+    b->val      = rkey;
+    b->use_cnt  = 16;
+
+    // Lock again to add the new entry.
+    CACHE_LOCK(c);
+    if (old_size != c->size) {
+        h      = hash_calc((const uint8_t *)key, len);
+        bucket = (Slot *)c->slots + (h & c->mask);
+    }
+    b->next = *bucket;
+    *bucket = b;
+    c->cnt++;  // Don't worry about wrapping. Worse case is the entry is removed and recreated.
     if (NULL != keyp) {
         *keyp = b->key;
     }
-    return b->val;
+    if (REHASH_LIMIT < c->cnt / c->size) {
+        rehash(c);
+    }
+    CACHE_UNLOCK(c);
+
+    return rkey;
 }
 
 Cache cache_create(size_t size,
                    VALUE (*form)(const char *str, size_t len),
                    bool mark,
                    bool locking) {
-    Cache c     = ALLOC(struct _cache);
+    Cache c     = calloc(1, sizeof(struct _cache));
     int   shift = 0;
 
     for (; REHASH_LIMIT < size; size /= 2, shift++) {
@@ -253,14 +258,10 @@ Cache cache_create(size_t size,
 #endif
     c->size  = 1 << shift;
     c->mask  = c->size - 1;
-    c->slots = ALLOC_N(Slot, c->size);
-    memset(c->slots, 0, sizeof(Slot) * c->size);
+    c->slots = calloc(c->size, sizeof(Slot));
     c->form  = form;
-    c->cnt   = 0;
     c->xrate = 1;  // low
     c->mark  = mark;
-    c->reuse = NULL;
-    c->rcnt  = 0;
     if (locking) {
         c->intern = locking_intern;
     } else {
@@ -282,11 +283,11 @@ void cache_free(Cache c) {
 
         for (s = c->slots[i]; NULL != s; s = next) {
             next = s->next;
-            xfree(s);
+            free(s);
         }
     }
-    xfree(c->slots);
-    xfree(c);
+    free((void *)c->slots);
+    free(c);
 }
 
 void cache_mark(Cache c) {
@@ -333,7 +334,7 @@ void cache_mark(Cache c) {
 
 VALUE
 cache_intern(Cache c, const char *key, size_t len, const char **keyp) {
-    if (CACHE_MAX_KEY < len) {
+    if (CACHE_MAX_KEY <= len) {
         if (NULL != keyp) {
             volatile VALUE rkey = c->form(key, len);
 
