@@ -10,9 +10,9 @@
 #endif
 #include <ruby/encoding.h>
 
-#include "ox.h"
 #include "cache.h"
 #include "intern.h"
+#include "ox.h"
 
 // Only used for the class cache so 256 should be sufficient.
 #define HASH_SLOT_CNT ((uint64_t)256)
@@ -65,26 +65,26 @@ static VALUE form_attr(const char *str, size_t len) {
         ID    id;
 
         if ('~' == *str) {
-	    memcpy(b, str + 1, len - 1);
-	    b[len - 1] = '\0';
-	    len -= 2;
-	} else {
-	    *b = '@';
-	    memcpy(b + 1, str, len);
-	    b[len + 1] = '\0';
-	}
+            memcpy(b, str + 1, len - 1);
+            b[len - 1] = '\0';
+            len -= 2;
+        } else {
+            *b = '@';
+            memcpy(b + 1, str, len);
+            b[len + 1] = '\0';
+        }
         id = rb_intern3(buf, len + 1, rb_utf8_encoding());
         xfree(b);
         return id;
     }
     if ('~' == *str) {
-	memcpy(buf, str + 1, len - 1);
-	buf[len - 1] = '\0';
-	len -= 2;
+        memcpy(buf, str + 1, len - 1);
+        buf[len - 1] = '\0';
+        len -= 2;
     } else {
-	*buf = '@';
-	memcpy(buf + 1, str, len);
-	buf[len + 1] = '\0';
+        *buf = '@';
+        memcpy(buf + 1, str, len);
+        buf[len + 1] = '\0';
     }
     return (VALUE)rb_intern3(buf, len + 1, rb_utf8_encoding());
 }
@@ -115,7 +115,14 @@ void ox_hash_init() {
 
 VALUE
 ox_str_intern(const char *key, size_t len) {
+    // For hugh cache sizes over half a million the rb_enc_interned_str
+    // performs slightly better but at more "normal" size of a several
+    // thousands the cache intern performs about 20% better.
+#if HAVE_RB_ENC_INTERNED_STR && 0
+    return rb_enc_interned_str(key, len, rb_utf8_encoding());
+#else
     return cache_intern(str_cache, key, len, NULL);
+#endif
 }
 
 VALUE
@@ -123,8 +130,7 @@ ox_sym_intern(const char *key, size_t len, const char **keyp) {
     return cache_intern(sym_cache, key, len, keyp);
 }
 
-ID
-ox_attr_intern(const char *key, size_t len) {
+ID ox_attr_intern(const char *key, size_t len) {
     return cache_intern(attr_cache, key, len, NULL);
 }
 

@@ -17,7 +17,7 @@
 
 /* maximum to allocate on the stack, arbitrary limit */
 #define SMALL_XML		4096
-#define WITH_CACHE_TESTS	0
+#define WITH_CACHE_TESTS	1
 
 typedef struct _yesNoOpt {
     VALUE	sym;
@@ -1378,18 +1378,25 @@ to_file(int argc, VALUE *argv, VALUE self) {
 }
 
 #if WITH_CACHE_TESTS
-extern void	ox_cache_test(void);
+extern void	ox_cache_test(int which, bool sym);
 
 static VALUE
-cache_test(VALUE self) {
-    ox_cache_test();
+    cache_test(VALUE self, VALUE which, VALUE as_sym) {
+    const char *s = rb_id2name(rb_sym2id(which));
+
+    if (0 == strcmp("ruby", s)) {
+	ox_cache_test(0, Qfalse != as_sym);
+    } else if (0 == strcmp("oj", s)) {
+	ox_cache_test(1, Qfalse != as_sym);
+    } else if (0 == strcmp("ox", s)) {
+	ox_cache_test(2, Qfalse != as_sym);
+    }
     return Qnil;
 }
 
 extern void	ox_cache8_test(void);
 
-static VALUE
-cache8_test(VALUE self) {
+static VALUE cache8_test(VALUE self) {
     ox_cache8_test();
     return Qnil;
 }
@@ -1572,7 +1579,7 @@ void Init_ox() {
 
 #if WITH_CACHE_TESTS
     // space added to stop yardoc from trying to document
-    rb_define_module_function(Ox, "cache_test", cache_test, 0);
+    rb_define_module_function(Ox, "cache_test", cache_test, 2);
     rb_define_module_function(Ox, "cache8_test", cache8_test, 0);
 #endif
 

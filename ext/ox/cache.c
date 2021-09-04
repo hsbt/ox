@@ -131,9 +131,9 @@ static VALUE lockless_intern(Cache c, const char *key, size_t len, const char **
     for (b = *bucket; NULL != b; b = b->next) {
         if ((uint8_t)len == b->klen && 0 == strncmp(b->key, key, len)) {
             b->use_cnt += 16;
-	    if (NULL != keyp) {
-		*keyp = b->key;
-	    }
+            if (NULL != keyp) {
+                *keyp = b->key;
+            }
             return b->val;
         }
     }
@@ -160,7 +160,7 @@ static VALUE lockless_intern(Cache c, const char *key, size_t len, const char **
         }
     }
     if (NULL != keyp) {
-	*keyp = b->key;
+        *keyp = b->key;
     }
     return b->val;
 }
@@ -188,9 +188,9 @@ static VALUE locking_intern(Cache c, const char *key, size_t len, const char **k
         if ((uint8_t)len == b->klen && 0 == strncmp(b->key, key, len)) {
             b->use_cnt += 16;
             CACHE_UNLOCK(c);
-	    if (NULL != keyp) {
-		*keyp = b->key;
-	    }
+            if (NULL != keyp) {
+                *keyp = b->key;
+            }
             return b->val;
         }
     }
@@ -229,12 +229,15 @@ static VALUE locking_intern(Cache c, const char *key, size_t len, const char **k
         CACHE_UNLOCK(c);
     }
     if (NULL != keyp) {
-	*keyp = b->key;
+        *keyp = b->key;
     }
     return b->val;
 }
 
-Cache cache_create(size_t size, VALUE (*form)(const char *str, size_t len), bool mark, bool locking) {
+Cache cache_create(size_t size,
+                   VALUE (*form)(const char *str, size_t len),
+                   bool mark,
+                   bool locking) {
     Cache c     = ALLOC(struct _cache);
     int   shift = 0;
 
@@ -331,15 +334,15 @@ void cache_mark(Cache c) {
 VALUE
 cache_intern(Cache c, const char *key, size_t len, const char **keyp) {
     if (CACHE_MAX_KEY < len) {
-	if (NULL != keyp) {
-	    volatile VALUE	rkey = c->form(key, len);
+        if (NULL != keyp) {
+            volatile VALUE rkey = c->form(key, len);
 
-	    if (SYMBOL_P(rkey)) {
-		*keyp = rb_id2name(rb_sym2id(rkey));
-	    }
-	    return rkey;
-	}
-	return c->form(key, len);
+            if (SYMBOL_P(rkey)) {
+                *keyp = rb_id2name(rb_sym2id(rkey));
+            }
+            return rkey;
+        }
+        return c->form(key, len);
     }
     return c->intern(c, key, len, keyp);
 }
