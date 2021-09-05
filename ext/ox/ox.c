@@ -156,11 +156,7 @@ static VALUE 	element_key_mod_sym;
 static ID	encoding_id;
 static ID	has_key_id;
 
-#if HAVE_RB_ENC_ASSOCIATE
 rb_encoding	*ox_utf8_encoding = 0;
-#else
-void		*ox_utf8_encoding = 0;
-#endif
 
 struct _options	 ox_default_options = {
     { '\0' },		// encoding
@@ -472,9 +468,7 @@ set_def_opts(VALUE self, VALUE opts) {
     } else {
 	Check_Type(v, T_STRING);
 	strncpy(ox_default_options.encoding, StringValuePtr(v), sizeof(ox_default_options.encoding) - 1);
-#if HAVE_RB_ENC_FIND
 	ox_default_options.rb_enc = rb_enc_find(ox_default_options.encoding);
-#endif
     }
 
     v = rb_hash_aref(opts, ox_indent_sym);
@@ -854,7 +848,6 @@ load(char *xml, size_t len, int argc, VALUE *argv, VALUE self, VALUE encoding, E
 	    options.with_cdata = (Qtrue == v);
 	}
     }
-#if HAVE_RB_ENC_FIND
     if ('\0' == *options.encoding) {
 	if (Qnil != encoding) {
 	    options.rb_enc = rb_enc_from_index(rb_enc_get_index(encoding));
@@ -864,7 +857,6 @@ load(char *xml, size_t len, int argc, VALUE *argv, VALUE self, VALUE encoding, E
     } else if (0 == options.rb_enc) {
 	options.rb_enc = rb_enc_find(options.encoding);
     }
-#endif
     xml = defuse_bom(xml, &options);
     switch (options.mode) {
     case ObjMode:
@@ -1317,11 +1309,9 @@ dump(int argc, VALUE *argv, VALUE self) {
 	rb_raise(rb_eNoMemError, "Not enough memory.\n");
     }
     rstr = rb_str_new2(xml);
-#if HAVE_RB_ENC_ASSOCIATE
     if ('\0' != *copts.encoding) {
 	rb_enc_associate(rstr, rb_enc_find(copts.encoding));
     }
-#endif
     xfree(xml);
 
     return rstr;
@@ -1582,10 +1572,7 @@ void Init_ox() {
     rb_define_module_function(Ox, "cache_test", cache_test, 2);
     rb_define_module_function(Ox, "cache8_test", cache8_test, 0);
 #endif
-
-#if HAVE_RB_ENC_FIND
     ox_utf8_encoding = rb_enc_find("UTF-8");
-#endif
 }
 
 #if __GNUC__ > 4

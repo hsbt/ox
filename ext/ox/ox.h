@@ -16,9 +16,7 @@ extern "C" {
 #define RSTRING_NOT_MODIFIED
 
 #include "ruby.h"
-#if HAVE_RB_ENC_ASSOCIATE
 #include "ruby/encoding.h"
-#endif
 
 #if HAVE_RUBY_ST_H
 #include "ruby/st.h"
@@ -142,11 +140,7 @@ typedef struct _options {
     struct _hints	*html_hints;	// html hints
     VALUE		attr_key_mod;
     VALUE		element_key_mod;
-#if HAVE_RB_ENC_ASSOCIATE
     rb_encoding		*rb_enc;
-#else
-    void		*rb_enc;
-#endif
 } *Options;
 
 // parse information structure
@@ -230,11 +224,7 @@ extern ID	ox_tv_nsec_id;
 extern ID	ox_tv_usec_id;
 extern ID	ox_value_id;
 
-#if HAVE_RB_ENC_ASSOCIATE
 extern rb_encoding	*ox_utf8_encoding;
-#else
-extern void		*ox_utf8_encoding;
-#endif
 
 extern VALUE	ox_empty_string;
 extern VALUE	ox_encoding_sym;

@@ -11,9 +11,7 @@
 #include <time.h>
 
 #include "ruby.h"
-#if HAVE_RB_ENC_ASSOCIATE
 #include "ruby/encoding.h"
-#endif
 #include "base64.h"
 #include "ox.h"
 
@@ -376,13 +374,11 @@ parse_regexp(const char *text) {
 static void
 instruct(PInfo pi, const char *target, Attr attrs, const char *content) {
     if (0 == strcmp("xml", target)) {
-#if HAVE_RB_ENC_FIND
 	for (; 0 != attrs->name; attrs++) {
 	    if (0 == strcmp("encoding", attrs->name)) {
 		pi->options->rb_enc = rb_enc_find(attrs->value);
 	    }
 	}
-#endif
     }
 }
 
@@ -408,11 +404,9 @@ add_text(PInfo pi, char *text, int closed) {
     case NoCode:
     case StringCode:
 	h->obj = rb_str_new2(text);
-#if HAVE_RB_ENC_ASSOCIATE
 	if (0 != pi->options->rb_enc) {
 	    rb_enc_associate(h->obj, pi->options->rb_enc);
 	}
-#endif
 	if (0 != pi->circ_array) {
 	    circ_array_set(pi->circ_array, h->obj, (unsigned long)pi->id);
 	}
@@ -481,11 +475,9 @@ add_text(PInfo pi, char *text, int closed) {
 
 	from_base64(text, (uchar*)str);
 	v = rb_str_new(str, str_size);
-#if HAVE_RB_ENC_ASSOCIATE
 	if (0 != pi->options->rb_enc) {
 	    rb_enc_associate(v, pi->options->rb_enc);
 	}
-#endif
 	if (0 != pi->circ_array) {
 	    circ_array_set(pi->circ_array, v, (unsigned long)h->obj);
 	}
