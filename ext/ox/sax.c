@@ -77,15 +77,28 @@ str2sym(SaxDrive dr, const char *str, const char **strp) {
     VALUE	sym;
 
     if (dr->options.symbolize) {
-	sym = ox_sym_intern(str, strlen(str), strp);
+	if (dr->utf8) {
+	    sym = ox_sym_intern(str, strlen(str), strp);
+	} else {
+	    sym = rb_str_new2(str);
+#if HAVE_RB_ENC_ASSOCIATE
+	    if (NULL != dr->encoding) {
+		rb_enc_associate(sym, dr->encoding);
+	    }
+#endif
+	    sym = rb_str_intern(sym);
+	    if (NULL != strp) {
+		*strp = rb_id2name(rb_sym2id(sym));
+	    }
+	}
     } else {
 	sym = rb_str_new2(str);
 #if HAVE_RB_ENC_ASSOCIATE
-	if (0 != dr->encoding) {
+	if (NULL != dr->encoding) {
 	    rb_enc_associate(sym, dr->encoding);
 	}
 #endif
-	if (0 != strp) {
+	if (NULL != strp) {
 	    *strp = StringValuePtr(sym);
 	}
     }
@@ -94,12 +107,12 @@ str2sym(SaxDrive dr, const char *str, const char **strp) {
 
 void
 ox_sax_parse(VALUE handler, VALUE io, SaxOptions options) {
-#if HAVE_RB_EXT_RACTOR_SAFE
-    rb_ext_ractor_safe(true);
-#endif
     struct _saxDrive    dr;
     int			line = 0;
 
+#if HAVE_RB_EXT_RACTOR_SAFE
+    rb_ext_ractor_safe(true);
+#endif
     sax_drive_init(&dr, handler, io, options);
 #if 0
     printf("*** sax_parse with these flags\n");
@@ -145,9 +158,11 @@ sax_drive_init(SaxDrive dr, VALUE handler, VALUE io, SaxOptions options) {
     if ('\0' == *ox_default_options.encoding) {
 	VALUE	encoding;
 
-	dr->encoding = 0;
-	if (rb_respond_to(io, ox_external_encoding_id) && Qnil != (encoding = rb_funcall(io, ox_external_encoding_id, 0))) {
+	dr->encoding = NULL;
+	if (rb_respond_to(io, ox_external_encoding_id) &&
+	    Qnil != (encoding = rb_funcall(io, ox_external_encoding_id, 0))) {
 	    int	e = rb_enc_get_index(encoding);
+
 	    if (0 <= e) {
 		dr->encoding = rb_enc_from_index(e);
 	    }
@@ -156,8 +171,9 @@ sax_drive_init(SaxDrive dr, VALUE handler, VALUE io, SaxOptions options) {
         dr->encoding = rb_enc_find(ox_default_options.encoding);
     }
 #else
-    dr->encoding = 0;
+    dr->encoding = NULL;
 #endif
+    dr->utf8 = (NULL == dr->encoding || rb_utf8_encoding() == dr->encoding);
 }
 
 void

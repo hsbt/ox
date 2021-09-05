@@ -29,15 +29,16 @@ typedef struct _saxDrive {
     VALUE		handler;
     VALUE		value_obj;
     struct _saxOptions	options;
-    int			err;
-    int			blocked;
-    bool		abort;
     struct _has		has;
 #if HAVE_RB_ENC_ASSOCIATE
     rb_encoding *encoding;
 #else
     const char	*encoding;
 #endif
+    int			err;
+    int			blocked;
+    bool		abort;
+    bool		utf8;
 } *SaxDrive;
 
 extern void	ox_collapse_return(char *str);
