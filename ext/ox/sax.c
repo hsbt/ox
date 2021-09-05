@@ -224,6 +224,7 @@ skipBOM(SaxDrive dr) {
 	    dr->encoding = UTF8_STR;
 #endif
 	    c = buf_get(&dr->buf);
+	    dr->utf8 = true;
 	} else {
 	    ox_sax_drive_error(dr, BAD_BOM "invalid BOM or a binary file.");
 	    c = '\0';
@@ -326,7 +327,7 @@ parse(SaxDrive dr) {
 
 		    args[0] = rb_str_new2("");
 #if HAVE_RB_ENC_ASSOCIATE
-		    if (0 != dr->encoding) {
+		    if (NULL != dr->encoding) {
 			rb_enc_associate(args[0], dr->encoding);
 		    }
 #endif
@@ -484,7 +485,7 @@ read_instruction(SaxDrive dr) {
 	    }
 	    args[0] = rb_str_new2(content);
 #if HAVE_RB_ENC_ASSOCIATE
-	    if (0 != dr->encoding) {
+	    if (NULL != dr->encoding) {
 		rb_enc_associate(args[0], dr->encoding);
 	    }
 #endif
@@ -686,7 +687,7 @@ read_cdata(SaxDrive dr) {
 
 	    args[0] = rb_str_new2(dr->buf.str);
 #if HAVE_RB_ENC_ASSOCIATE
-	    if (0 != dr->encoding) {
+	    if (NULL != dr->encoding) {
 		rb_enc_associate(args[0], dr->encoding);
 	    }
 #endif
@@ -776,7 +777,7 @@ read_comment(SaxDrive dr) {
 
 	    args[0] = rb_str_new2(dr->buf.str);
 #if HAVE_RB_ENC_ASSOCIATE
-	    if (0 != dr->encoding) {
+	    if (NULL != dr->encoding) {
 		rb_enc_associate(args[0], dr->encoding);
 	    }
 #endif
@@ -1104,7 +1105,7 @@ read_text(SaxDrive dr) {
 	     (OffSkip == dr->options.skip))) {
 	    args[0] = rb_str_new2(dr->buf.str);
 #if HAVE_RB_ENC_ASSOCIATE
-	    if (0 != dr->encoding) {
+	    if (NULL != dr->encoding) {
 		rb_enc_associate(args[0], dr->encoding);
 	    }
 #endif
@@ -1155,7 +1156,7 @@ read_text(SaxDrive dr) {
 	    }
 	    args[0] = rb_str_new2(dr->buf.str);
 #if HAVE_RB_ENC_ASSOCIATE
-	    if (0 != dr->encoding) {
+	    if (NULL != dr->encoding) {
 		rb_enc_associate(args[0], dr->encoding);
 	    }
 #endif
@@ -1237,7 +1238,7 @@ read_jump(SaxDrive dr, const char *pat) {
     if (dr->has.text && !dr->blocked) {
         args[0] = rb_str_new2(dr->buf.str);
 #if HAVE_RB_ENC_ASSOCIATE
-        if (0 != dr->encoding) {
+        if (NULL != dr->encoding) {
             rb_enc_associate(args[0], dr->encoding);
         }
 #endif
@@ -1316,6 +1317,7 @@ read_attrs(SaxDrive dr, char c, char termc, char term2, int is_xml, int eq_req, 
 		dr->encoding = dr->buf.str;
 #endif
 		is_encoding = 0;
+		dr->utf8 = (NULL == dr->encoding || rb_utf8_encoding() == dr->encoding);
 	    }
 	}
 	if (0 >= dr->blocked && (NULL == h || ActiveOverlay == h->overlay || NestOverlay == h->overlay)) {
@@ -1343,7 +1345,7 @@ read_attrs(SaxDrive dr, char c, char termc, char term2, int is_xml, int eq_req, 
 		}
 		args[1] = rb_str_new2(attr_value);
 #if HAVE_RB_ENC_ASSOCIATE
-		if (0 != dr->encoding) {
+		if (NULL != dr->encoding) {
 		    rb_enc_associate(args[1], dr->encoding);
 		}
 #endif
