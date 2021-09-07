@@ -111,7 +111,7 @@ static VALUE intern_oj_sym(const char *str, int len) {
 }
 
 static VALUE intern_oj_str(const char *str, int len) {
-    return ox_str_intern(str, len);
+    return ox_str_intern(str, len, NULL);
 }
 
 static VALUE intern_ox_sym(const char *str, int len) {

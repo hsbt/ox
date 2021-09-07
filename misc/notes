@@ -13,9 +13,14 @@
 
 - todo
  - cache
-  - maybe only allow if utf8? which is default
-   - if encoding is not utfb then turn off caching
+  - use get_name pointer on dr
+   - setup when excoding to sym changes
+    - on create
+    - on encoding
+  - cache_string for text values
+  - only allow if utf8? which is default
   - start with sax parser (str2sym)
+   - add option for cache_names and cache_values
 
   - optional
    - attrs (name (sym or string) and value (cache_strings))

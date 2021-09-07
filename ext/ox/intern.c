@@ -8,7 +8,6 @@
 #if HAVE_PTHREAD_MUTEX_INIT
 #include <pthread.h>
 #endif
-#include <ruby/encoding.h>
 
 #include "cache.h"
 #include "intern.h"
@@ -114,14 +113,14 @@ void ox_hash_init() {
 }
 
 VALUE
-ox_str_intern(const char *key, size_t len) {
+ox_str_intern(const char *key, size_t len, const char **keyp) {
     // For huge cache sizes over half a million the rb_enc_interned_str
     // performs slightly better but at more "normal" size of a several
     // thousands the cache intern performs about 20% better.
 #if HAVE_RB_ENC_INTERNED_STR && 0
     return rb_enc_interned_str(key, len, rb_utf8_encoding());
 #else
-    return cache_intern(str_cache, key, len, NULL);
+    return cache_intern(str_cache, key, len, keyp);
 #endif
 }
 
@@ -147,4 +146,37 @@ void intern_cleanup() {
     cache_free(str_cache);
     cache_free(sym_cache);
     cache_free(attr_cache);
+}
+
+VALUE
+ox_utf8_sym(const char *str, size_t len, rb_encoding *encoding, const char **strp) {
+    return ox_sym_intern(str, len, strp);
+}
+
+VALUE
+ox_utf8_name(const char *str, size_t len, rb_encoding *encoding, const char **strp) {
+    return ox_str_intern(str, len, strp);
+}
+
+VALUE
+ox_enc_sym(const char *str, size_t len, rb_encoding *encoding, const char **strp) {
+    VALUE sym = rb_str_new(str, len);
+
+    rb_enc_associate(sym, encoding);
+    sym = rb_str_intern(sym);
+    if (NULL != strp) {
+        *strp = rb_id2name(rb_sym2id(sym));
+    }
+    return sym;
+}
+
+VALUE
+ox_enc_name(const char *str, size_t len, rb_encoding *encoding, const char **strp) {
+    VALUE sym = rb_str_new2(str);
+
+    rb_enc_associate(sym, encoding);
+    if (NULL != strp) {
+        *strp = StringValuePtr(sym);
+    }
+    return sym;
 }

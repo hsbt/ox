@@ -1,7 +1,4 @@
-/* sax.h
- * Copyright (c) 2011, Peter Ohler
- * All rights reserved.
- */
+// Copyright (c) 2011, 2021, Peter Ohler, All rights reserved.
 
 #ifndef OX_SAX_H
 #define OX_SAX_H
@@ -25,16 +22,17 @@ typedef struct _saxOptions {
 
 typedef struct _saxDrive {
     struct _buf        buf;
-    struct _nStack     stack; /* element name stack */
+    struct _nStack     stack; // element name stack
     VALUE              handler;
     VALUE              value_obj;
     struct _saxOptions options;
     struct _has        has;
     rb_encoding *      encoding;
-    int                err;
-    int                blocked;
-    bool               abort;
-    bool               utf8;
+    VALUE (*get_name)(const char *name, size_t len, rb_encoding *encoding, const char **namep);
+    int  err;
+    int  blocked;
+    bool abort;
+    bool utf8;
 } * SaxDrive;
 
 extern void ox_collapse_return(char *str);

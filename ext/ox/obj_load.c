@@ -59,7 +59,6 @@ inline static VALUE
 str2sym(const char *str, void *encoding) {
     VALUE	sym;
 
-#ifdef HAVE_RUBY_ENCODING_H
     if (0 != encoding) {
 	VALUE	rstr = rb_str_new2(str);
 
@@ -68,9 +67,6 @@ str2sym(const char *str, void *encoding) {
     } else {
 	sym = ID2SYM(rb_intern(str));
     }
-#else
-    sym = ID2SYM(rb_intern(str));
-#endif
     return sym;
 }
 
@@ -82,7 +78,6 @@ name2var(const char *name, void *encoding) {
     if ('0' <= *name && *name <= '9') {
 	var_id = INT2NUM(atoi(name));
     } else if (Qundef == (var_id = ox_cache_get(ox_attr_cache, name, &slot, 0))) {
-#ifdef HAVE_RUBY_ENCODING_H
 	if (0 != encoding) {
 	    volatile VALUE	rstr = rb_str_new2(name);
 	    volatile VALUE	sym;
@@ -96,9 +91,6 @@ name2var(const char *name, void *encoding) {
 	} else {
 	    var_id = rb_intern(name);
 	}
-#else
-	var_id = rb_intern(name);
-#endif
 	*slot = var_id;
     }
     return var_id;
