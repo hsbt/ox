@@ -827,7 +827,7 @@ parse_double_time(const char *text, VALUE clas) {
     for (; text - dot <= 9; text++) {
 	v2 *= 10;
     }
-#if HAS_NANO_TIME
+#if HAVE_RB_TIME_NANO_NEW
     return rb_time_nano_new(v, v2);
 #else
     return rb_time_new(v, v2 / 1000);
@@ -883,7 +883,7 @@ parse_xsd_time(const char *text, VALUE clas) {
     tm.tm_hour = (int)cargs[3];
     tm.tm_min = (int)cargs[4];
     tm.tm_sec = (int)cargs[5];
-#if HAS_NANO_TIME
+#if HAVE_RB_TIME_NANO_NEW
     return rb_time_nano_new(mktime(&tm), cargs[6]);
 #else
     return rb_time_new(mktime(&tm), cargs[6] / 1000);

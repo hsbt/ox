@@ -17,7 +17,7 @@
 
 /* maximum to allocate on the stack, arbitrary limit */
 #define SMALL_XML		4096
-#define WITH_CACHE_TESTS	1
+#define WITH_CACHE_TESTS	0
 
 typedef struct _yesNoOpt {
     VALUE	sym;
