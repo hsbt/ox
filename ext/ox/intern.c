@@ -53,7 +53,8 @@ static VALUE form_str(const char *str, size_t len) {
 }
 
 static VALUE form_sym(const char *str, size_t len) {
-    return rb_str_intern(rb_utf8_str_new(str, len));
+    // Symbols are always ASCII and encoding can not be set.
+    return rb_intern2(str, len);
 }
 
 static VALUE form_attr(const char *str, size_t len) {
@@ -149,25 +150,13 @@ void intern_cleanup() {
 }
 
 VALUE
-ox_utf8_sym(const char *str, size_t len, rb_encoding *encoding, const char **strp) {
-    return ox_sym_intern(str, len, strp);
-}
-
-VALUE
 ox_utf8_name(const char *str, size_t len, rb_encoding *encoding, const char **strp) {
     return ox_str_intern(str, len, strp);
 }
 
 VALUE
 ox_enc_sym(const char *str, size_t len, rb_encoding *encoding, const char **strp) {
-    VALUE sym = rb_str_new(str, len);
-
-    rb_enc_associate(sym, encoding);
-    sym = rb_str_intern(sym);
-    if (NULL != strp) {
-        *strp = rb_id2name(rb_sym2id(sym));
-    }
-    return sym;
+    return ox_sym_intern(str, len, strp);
 }
 
 VALUE

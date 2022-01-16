@@ -43,6 +43,6 @@ extern int  ox_sax_collapse_special(SaxDrive dr, char *str, long pos, long line,
 
 extern VALUE ox_sax_value_class;
 
-extern VALUE str2sym(SaxDrive dr, const char *str, const char **strp);
+extern VALUE str2sym(SaxDrive dr, const char *str, size_t len, const char **strp);
 
 #endif /* OX_SAX_H */

@@ -153,7 +153,7 @@ sax_value_as_sym(VALUE self) {
     if ('\0' == *dr->buf.str) {
 	return Qnil;
     }
-    return str2sym(dr, dr->buf.str, 0);
+    return str2sym(dr, dr->buf.str, dr->buf.tail - dr->buf.str - 1,  0);
 }
 
 /* call-seq: as_f()

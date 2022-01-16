@@ -69,31 +69,14 @@ static VALUE protect_parse(VALUE drp) {
 }
 
 VALUE
-str2sym(SaxDrive dr, const char *str, const char **strp) {
+str2sym(SaxDrive dr, const char *str, size_t len, const char **strp) {
     VALUE sym;
 
+    // TBD option for cache?
     if (dr->options.symbolize) {
-        if (dr->utf8) {  // TBD check cache_names, sym or str
-            sym = ox_sym_intern(str, strlen(str), strp);
-        } else {
-            sym = rb_str_new2(str);
-            if (NULL != dr->encoding) {
-                rb_enc_associate(sym, dr->encoding);
-            }
-            sym = rb_str_intern(sym);
-            if (NULL != strp) {
-                *strp = rb_id2name(rb_sym2id(sym));
-            }
-        }
+	sym = ox_sym_intern(str, len, strp);
     } else {
-        // if (dr->utf8) { // TBD check cache_names, sym or str
-        sym = rb_str_new2(str);
-        if (NULL != dr->encoding) {
-            rb_enc_associate(sym, dr->encoding);
-        }
-        if (NULL != strp) {
-            *strp = StringValuePtr(sym);
-        }
+	sym = dr->get_name(str, len, dr->encoding, strp);
     }
     return sym;
 }
@@ -151,20 +134,27 @@ static void sax_drive_init(SaxDrive dr, VALUE handler, VALUE io, SaxOptions opti
         dr->encoding = NULL;
         if (rb_respond_to(io, ox_external_encoding_id) &&
             Qnil != (encoding = rb_funcall(io, ox_external_encoding_id, 0))) {
-            int e = rb_enc_get_index(encoding);
+	    if (rb_ascii8bit_encoding() == dr->encoding ||
+		rb_usascii_encoding() == dr->encoding) {
+		// This is the default for Ruby. UTF-8 is a super set of both
+		// so use that.
+		dr->encoding = rb_utf8_encoding();
+	    } else {
+		int e = rb_enc_get_index(encoding);
 
-            if (0 <= e) {
-                dr->encoding = rb_enc_from_index(e);
-            }
+		if (0 <= e) {
+		    dr->encoding = rb_enc_from_index(e);
+		}
+	    }
         }
     } else {
         dr->encoding = rb_enc_find(ox_default_options.encoding);
     }
     dr->utf8 = (NULL == dr->encoding || rb_utf8_encoding() == dr->encoding);
     if (NULL == dr->encoding || rb_utf8_encoding() == dr->encoding) {  // UTF-8
-        dr->get_name = dr->options.symbolize ? ox_utf8_sym : ox_utf8_name;
+        dr->get_name = dr->options.symbolize ? ox_enc_sym : ox_utf8_name;
     } else {
-        dr->get_name = dr->options.symbolize ? ox_enc_sym : ox_enc_name;
+	dr->get_name = dr->options.symbolize ? ox_enc_sym : ox_enc_name;
     }
 }
 
@@ -805,7 +795,7 @@ static char read_element_start(SaxDrive dr) {
                 if (rb_respond_to(dr->handler, ox_abort_id)) {
                     VALUE args[1];
 
-                    args[0] = str2sym(dr, dr->buf.str, NULL);
+                    args[0] = str2sym(dr, dr->buf.str, dr->buf.tail - dr->buf.str - 1, NULL);
                     rb_funcall2(dr->handler, ox_abort_id, 1, args);
                 }
                 dr->abort = true;
@@ -856,7 +846,8 @@ static char read_element_start(SaxDrive dr) {
             }
         }
     }
-    name = dr->get_name(dr->buf.str, dr->buf.tail - dr->buf.str - 1, dr->encoding, &ename);
+    //name = dr->get_name(dr->buf.str, dr->buf.tail - dr->buf.str - 1, dr->encoding, &ename);
+    name = dr->get_name(dr->buf.str, dr->buf.tail - dr->buf.str - 1, rb_utf8_encoding(), &ename);
     if (dr->has.start_element && 0 >= dr->blocked &&
         (NULL == h || ActiveOverlay == h->overlay || NestOverlay == h->overlay)) {
         VALUE args[1];
@@ -960,7 +951,7 @@ static char read_element_end(SaxDrive dr) {
             h = ox_hint_find(dr->options.hints, dr->buf.str);
             if (NULL != h && h->empty) {
                 // Just close normally
-                name = str2sym(dr, dr->buf.str, NULL);
+                name = str2sym(dr, dr->buf.str, dr->buf.tail - dr->buf.str - 1, NULL);
                 snprintf(msg,
                          sizeof(msg) - 1,
                          "%selement '%s' should not have a separate close element",
@@ -971,7 +962,7 @@ static char read_element_end(SaxDrive dr) {
             } else {
                 snprintf(msg, sizeof(msg) - 1, "%selement '%s' closed but not opened", EL_MISMATCH, dr->buf.str);
                 ox_sax_drive_error_at(dr, msg, pos, line, col);
-                name = str2sym(dr, dr->buf.str, NULL);
+                name = str2sym(dr, dr->buf.str, dr->buf.tail - dr->buf.str - 1, NULL);
                 if (dr->has.start_element && 0 >= dr->blocked &&
                     (NULL == h || ActiveOverlay == h->overlay || NestOverlay == h->overlay)) {
                     VALUE args[1];
@@ -1072,6 +1063,7 @@ END_OF_BUF:
 
         buf_backup(&dr->buf);
         if (dr->has.text && ((NoSkip == dr->options.skip && !isEnd) || (OffSkip == dr->options.skip))) {
+	    // TBD use cache
             args[0] = rb_str_new2(dr->buf.str);
             if (NULL != dr->encoding) {
                 rb_enc_associate(args[0], dr->encoding);
@@ -1116,6 +1108,7 @@ END_OF_BUF:
             case SpcSkip: buf_collapse_white(dr->buf.str); break;
             default: break;
             }
+	    // TBD use cache
             args[0] = rb_str_new2(dr->buf.str);
             if (NULL != dr->encoding) {
                 rb_enc_associate(args[0], dr->encoding);
@@ -1193,6 +1186,7 @@ END_OF_BUF:
     }
     // TBD check parent overlay
     if (dr->has.text && !dr->blocked) {
+	// TBD use cache
         args[0] = rb_str_new2(dr->buf.str);
         if (NULL != dr->encoding) {
             rb_enc_associate(args[0], dr->encoding);
@@ -1245,7 +1239,7 @@ static char read_attrs(SaxDrive dr, char c, char termc, char term2, int is_xml, 
             is_encoding = 1;
         }
         if (dr->has.attr || dr->has.attr_value) {
-            name = str2sym(dr, dr->buf.str, NULL);
+            name = str2sym(dr, dr->buf.str, dr->buf.tail - dr->buf.str - 1, NULL);
         }
         if (is_white(c)) {
             c = buf_next_non_white(&dr->buf);
@@ -1270,7 +1264,7 @@ static char read_attrs(SaxDrive dr, char c, char termc, char term2, int is_xml, 
                 is_encoding  = 0;
                 dr->utf8     = (NULL == dr->encoding || rb_utf8_encoding() == dr->encoding);
                 if (NULL == dr->encoding || rb_utf8_encoding() == dr->encoding) {  // UTF-8
-                    dr->get_name = dr->options.symbolize ? ox_utf8_sym : ox_utf8_name;
+                    dr->get_name = dr->options.symbolize ? ox_enc_sym : ox_utf8_name;
                 } else {
                     dr->get_name = dr->options.symbolize ? ox_enc_sym : ox_enc_name;
                 }
@@ -1299,6 +1293,7 @@ static char read_attrs(SaxDrive dr, char c, char termc, char term2, int is_xml, 
                 if (dr->options.convert_special) {
                     ox_sax_collapse_special(dr, dr->buf.str, pos, line, col);
                 }
+		// TBD cache attr values
                 args[1] = rb_str_new2(attr_value);
                 if (NULL != dr->encoding) {
                     rb_enc_associate(args[1], dr->encoding);
@@ -1494,7 +1489,7 @@ int ox_sax_collapse_special(SaxDrive dr, char *str, long pos, long line, long co
                 } else if (0 == dr->encoding) {
                     dr->encoding = ox_utf8_encoding;
                     b            = ox_ucs_to_utf8_chars(b, u);
-                    dr->get_name = dr->options.symbolize ? ox_utf8_sym : ox_utf8_name;
+                    dr->get_name = dr->options.symbolize ? ox_enc_sym : ox_utf8_name;
                 } else {
                     b = ox_ucs_to_utf8_chars(b, u);
                     /*
