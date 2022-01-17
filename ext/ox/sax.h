@@ -29,10 +29,16 @@ typedef struct _saxDrive {
     struct _has        has;
     rb_encoding *      encoding;
     VALUE (*get_name)(const char *name, size_t len, rb_encoding *encoding, const char **namep);
+    void (*set_pos)(VALUE handler, long pos);
+    void (*set_line)(VALUE handler, long line);
+    void (*set_col)(VALUE handler, long col);
+    void (*attr_cb)(struct _saxDrive *dr, VALUE name);
+
     int  err;
     int  blocked;
     bool abort;
     bool utf8;
+    bool want_attr_name;
 } * SaxDrive;
 
 extern void ox_collapse_return(char *str);

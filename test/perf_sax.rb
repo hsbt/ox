@@ -27,8 +27,8 @@ begin
 rescue Exception => e
 end
 
-#Encoding.default_external = Encoding.find("UTF-8")
-#Encoding.default_internal = Encoding.find("UTF-8")
+Encoding.default_external = Encoding.find("UTF-8")
+Encoding.default_internal = Encoding.find("UTF-8")
 
 $verbose = 0
 $ox_only = false
@@ -93,7 +93,7 @@ class OxAllSax < OxSax
   def attr(name, str); end
   def attr_value(name, value); end
   def end_element(name); end
-  def text(str);  puts("*** text #{str} encoding: #{str.to_s.encoding}"); end
+  def text(str);  end
   def value(value); end
   def instruct(target); end
   def doctype(value); end
